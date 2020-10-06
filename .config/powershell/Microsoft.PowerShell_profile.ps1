@@ -2,6 +2,18 @@ Set-Theme robbyrussell
 Set-Prompt
 Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
 
+function Exec-In-Context {
+    param (
+        [string]$path,
+        [scriptblock]$action
+    )
+    $prev = Get-Location
+    Set-Location $path
+    $result = $action.Invoke()
+    Set-Location $prev
+    $result
+}
+
 function Git-DotFiles {
     /usr/bin/git --git-dir=$HOME/git/dotfiles --work-tree=$HOME @Args
 }
@@ -12,26 +24,12 @@ function Sync-DotFiles {
 }
 
 function Get-DotFiles {
-    $Prev = Get-Location
-    Set-Location $HOME
-
-    $Files = Git-DotFiles ls-tree -r master --name-only
-
-    Set-Location $Prev
-    $Files
+    Exec-In-Context $HOME { Git-DotFiles ls-tree -r master --name-only }
 }
 
 function Edit-DotFiles {
-    $Prev = Get-Location
-    Set-Location $HOME
-
-    $File = Get-DotFiles | Invoke-Fzf
-    if ([string]::IsNullOrEmpty($File)) {
-        Set-Location $Prev
-        return 
-    }
+    $File = Exec-In-Context $HOME { Get-DotFiles | Invoke-Fzf }
+    if ([string]::IsNullOrEmpty($File)) { return }
     $File = [System.IO.Path]::Join($HOME, $File)
     nvim ($File)
-
-    Set-Location $Prev
 }
