@@ -1,6 +1,7 @@
 Set-Theme robbyrussell
 Set-Prompt
 Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
+$ENV:EDITOR = "nvim"
 
 function Exec-In-Context {
     param (
@@ -28,8 +29,18 @@ function Get-DotFiles {
 }
 
 function Edit-DotFiles {
-    $File = Exec-In-Context $HOME { Get-DotFiles | Invoke-Fzf }
+    $file = Exec-In-Context $HOME { Get-DotFiles | Invoke-Fzf -Preview "bat --color=always --style numbers {}" }
     if ([string]::IsNullOrEmpty($File)) { return }
-    $File = [System.IO.Path]::Join($HOME, $File)
-    nvim ($File)
+    $file = [System.IO.Path]::Join($HOME, $file)
+    nvim ($file)
+}
+
+function Commit-DotFiles {
+    $files = Exec-In-Context $HOME { 
+        Git-DotFiles ls-files -m 
+        | Invoke-Fzf -Preview "/usr/bin/git --git-dir=$HOME/git/dotfiles --work-tree=$HOME diff --color=always {}" -Multi
+    }
+    if ([string]::IsNullOrEmpty($Files)) { return }
+    Exec-In-Context $HOME { &Git-DotFiles add @($files) }
+    Git-DotFiles commit
 }
